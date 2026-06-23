@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="TD3 × MuJoCo Ant-v5 四足步態實驗的完整數據附錄：逐版 reward 設定、九大指標、量化比較與多 seed 驗證。">
+<title>TD3 × Ant-v5 · 完整實驗數據</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a2520; --muted:#5f6f68; --paper:#f5f3ec; --panel:#fffdf8;
+    --sage:#e8efe5; --sage-line:#cdddc8; --deep:#1f4e5a; --deep-2:#2b5f6c;
+    --coral:#f7e3db; --coral-ink:#b5482e; --green:#2f8f4e; --green-bg:#e3f3e8;
+    --line:#ddd7c8; --shadow:0 1px 2px rgba(31,78,90,.04),0 6px 22px rgba(31,78,90,.07);
+    --serif:"Noto Serif TC","Songti TC","Source Han Serif TC",serif;
+    --sans:"Noto Sans TC",-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei","Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+    --nav-h:60px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.7;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--deep);text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1,h2,h3{font-family:var(--serif);line-height:1.3;letter-spacing:.01em}
+
+  /* nav */
+  .nav{position:sticky;top:0;z-index:50;height:var(--nav-h);background:rgba(31,78,90,.96);backdrop-filter:blur(8px);display:flex;align-items:center;gap:18px;padding:0 clamp(16px,4vw,40px);box-shadow:0 1px 0 rgba(255,255,255,.06),0 6px 18px rgba(0,0,0,.12)}
+  .nav .brand{color:#fff;font-family:var(--serif);font-weight:700;font-size:15.5px;white-space:nowrap}
+  .nav .brand small{display:block;font-family:var(--sans);font-weight:400;font-size:11px;color:#bcd3d8;letter-spacing:.06em}
+  .nav .links{margin-left:auto;display:flex;gap:3px;overflow-x:auto;scrollbar-width:none}
+  .nav .links::-webkit-scrollbar{display:none}
+  .nav .links a{color:#cfe1e4;font-size:13.5px;padding:7px 11px;border-radius:8px;white-space:nowrap;font-weight:500}
+  .nav .links a:hover{color:#fff;background:rgba(255,255,255,.10);text-decoration:none}
+  .nav .links a.active{color:#fff;background:rgba(255,255,255,.16)}
+  @media(max-width:760px){.nav .brand small{display:none}}
+
+  /* layout */
+  section{padding:clamp(48px,7vw,88px) clamp(16px,4vw,40px);scroll-margin-top:var(--nav-h)}
+  .wrap{max-width:1140px;margin:0 auto}
+  .seclabel{font-size:12.5px;font-weight:700;letter-spacing:.2em;color:var(--coral-ink);text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+  .seclabel::before{content:"";width:26px;height:2px;background:var(--coral-ink);display:inline-block}
+  h2.title{font-size:clamp(26px,4vw,38px);margin:0 0 12px;font-weight:900;color:var(--ink)}
+  .lead{font-size:clamp(15px,1.9vw,17px);color:var(--muted);max-width:820px;margin:0 0 8px}
+  .band{background:linear-gradient(180deg,#fbfaf5,#f1f0e8)}
+
+  /* hero (slim, data-oriented) */
+  .hero{background:radial-gradient(1100px 560px at 80% -10%,rgba(196,154,104,.18),transparent 60%),radial-gradient(800px 460px at 0% 120%,rgba(47,143,78,.16),transparent 55%),linear-gradient(160deg,#1c4954,#1f4e5a 50%,#16323a);color:#eef5f4;padding:clamp(56px,10vh,96px) clamp(16px,4vw,40px) clamp(48px,8vh,76px);scroll-margin-top:0}
+  .hero .kicker{font-size:12.5px;letter-spacing:.28em;color:#9fc1c6;font-weight:700;text-transform:uppercase;margin:0 0 18px}
+  .hero h1{font-size:clamp(30px,5.4vw,52px);font-weight:900;margin:0 0 16px;color:#fff;letter-spacing:.02em}
+  .hero .subtitle{font-size:clamp(15px,2.1vw,19px);color:#d6e6e8;font-family:var(--serif);margin:0 0 28px;max-width:760px}
+  .hero .subtitle em{color:#e7c9a3;font-style:normal;font-weight:700}
+  .authors{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 24px}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:7px 15px;font-size:14px;color:#eef5f4}
+  .chip b{font-weight:700}
+  .chip small{color:#a8c6cb;font-family:var(--mono);font-size:12px}
+  .techtags{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;letter-spacing:.14em;color:#9fc1c6;font-weight:600;text-transform:uppercase}
+  .techtags span::after{content:" ·";color:rgba(255,255,255,.35)}
+  .techtags span:last-child::after{display:none}
+
+  /* cards / grids */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:860px){.grid3{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:var(--shadow)}
+  ul.clean{list-style:none;padding:0;margin:0}
+  ul.clean li{position:relative;padding:5px 0 5px 20px;color:#33433d}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:14px;width:6px;height:6px;border-radius:2px;background:var(--green);transform:rotate(45deg)}
+
+  /* tables */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:680px}
+  thead th{background:var(--deep);color:#fff;font-weight:700;text-align:left;padding:13px 15px;font-size:13px;letter-spacing:.03em;position:sticky;top:0}
+  tbody td,tbody th{padding:12px 15px;border-top:1px solid var(--line);vertical-align:top}
+  tbody th{text-align:left;font-weight:700;color:var(--ink)}
+  tbody tr:nth-child(even){background:#faf9f3}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
+  .best-cell{color:var(--green);font-weight:700;background:var(--green-bg)!important}
+  .cat-cell{background:#eef2ec;font-weight:700;color:var(--deep);white-space:nowrap}
+  .dir{color:var(--green);font-weight:600;white-space:nowrap;font-size:12.5px}
+  .mono-name{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:600}
+  .gtag{font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--deep);padding:2px 7px;border-radius:6px;letter-spacing:.02em}
+  .gtag.g{background:#7a8f86}.gtag.b{background:var(--green)}.gtag.f{background:#b08a5a}
+  .tnote{font-size:12.5px;color:var(--muted);margin:12px 2px 0}
+
+  /* version map */
+  .vermap{display:flex;flex-direction:column;gap:12px}
+  .vstage{display:flex;gap:12px;flex-wrap:wrap}
+  .vbox{flex:1 1 220px;background:var(--sage);border:1px solid var(--sage-line);border-radius:14px;padding:16px 18px}
+  .vbox.best{background:linear-gradient(180deg,#eef7ef,#e4f1e6);border-color:#a9d8b5}
+  .vbox .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .vbox .gk{font-family:var(--serif);font-weight:900;color:var(--coral-ink);font-size:15px}
+  .vbox .id{font-family:var(--mono);font-size:11px;color:var(--muted);background:#fff;border:1px solid var(--sage-line);padding:2px 7px;border-radius:6px}
+  .vbox p{margin:0;font-size:13.5px;color:#33433d}
+  .arrow{text-align:center;color:var(--deep);font-size:20px;line-height:1}
+  .stage-lbl{font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:4px 0 -4px}
+
+  /* callout */
+  .corelist{counter-reset:c;list-style:none;padding:0;margin:0;display:grid;gap:10px}
+  .corelist li{counter-increment:c;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 54px;position:relative;font-weight:600;color:var(--ink)}
+  .corelist li::before{content:counter(c);position:absolute;left:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:8px;background:var(--coral-ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-size:14px}
+  .corelist li b{color:var(--coral-ink)}
+  code{font-family:var(--mono);font-size:.88em;background:#eef2ec;border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  /* one-line compact grid */
+  .olgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px;margin-top:6px}
+  .oli{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ac,var(--deep));border-radius:10px;padding:11px 14px;box-shadow:var(--shadow)}
+  .oli .olk{flex:none;width:26px;height:26px;border-radius:7px;background:var(--ac,var(--deep));color:#fff;font-family:var(--serif);font-weight:900;font-size:13px;display:grid;place-items:center}
+  .oli .oln{flex:none;font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink);min-width:60px}
+  .oli .olt{font-size:13.5px;color:#33433d;line-height:1.5}
+  @media(max-width:560px){.oli .oln{min-width:52px}}
+  /* TensorBoard analysis figures */
+  .figrow{display:grid;grid-template-columns:1.35fr 1fr;gap:28px;align-items:center;margin:0 0 24px}
+  .figrow.flip .figfig{order:2}
+  @media(max-width:840px){.figrow{grid-template-columns:1fr;gap:16px}.figrow.flip .figfig{order:0}}
+  .figfig{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow);cursor:zoom-in;transition:.15s}
+  .figfig:hover{box-shadow:0 10px 30px rgba(31,78,90,.13)}
+  .figfig img{display:block;width:100%;border-radius:8px}
+  .figtext h3{font-size:19px;margin:0 0 8px}
+  .figtag{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--coral-ink);margin:0 0 8px}
+  .figtext p{margin:0 0 10px;color:#33433d;font-size:14.5px}
+  .figtext ul.clean li{font-size:13.5px}
+  .lb{position:fixed;inset:0;z-index:80;background:rgba(15,22,20,.93);display:none;align-items:center;justify-content:center;padding:28px;cursor:zoom-out}
+  .lb.show{display:flex}
+  .lb img{max-width:96vw;max-height:92vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  /* CTA button to code page */
+  .cta{display:inline-flex;align-items:center;gap:12px;background:var(--sand,#e7c9a3);color:#15201d;font-weight:700;font-size:16px;font-family:var(--serif);padding:15px 26px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:.15s;margin:4px 0 6px}
+  .cta:hover{transform:translateY(-2px);text-decoration:none;background:#efd3a8}
+  .cta .arw{font-family:var(--sans);font-size:18px}
+  .cta-sub{color:#bcd3d8;font-size:13.5px;margin:2px 0 26px}
+  .cta-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:4px 0 6px}
+  .cta-row .cta{margin:0}
+  .cta.ghost{background:transparent;color:#eef5f4;border:1px solid rgba(255,255,255,.32);box-shadow:none}
+  .cta.ghost:hover{background:rgba(255,255,255,.10)}
+  .resultnote{margin-top:24px;background:var(--sage);border:1px solid var(--sage-line);border-radius:14px;padding:20px 24px}
+  .resultnote h4{margin:0 0 8px;font-family:var(--serif);font-size:16px}
+  .resultnote p{margin:0;color:#33433d}
+  .codeblock{font-family:var(--mono);font-size:12.5px;background:#15201d;color:#dfeae3;border-radius:10px;padding:14px 16px;overflow-x:auto;line-height:1.75;margin:0}
+  .codeblock .k{color:#e7c9a3}.codeblock .c{color:#7f978f}
+
+  /* accordion (per-version detail) */
+  .acc-group-lbl{font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:28px 0 12px;display:flex;align-items:center;gap:10px}
+  .acc-group-lbl::before{content:"";width:18px;height:2px;background:var(--muted)}
+  .acc{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:11px;overflow:hidden;box-shadow:var(--shadow)}
+  .acc>summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-weight:700;color:var(--ink);font-family:var(--serif)}
+  .acc>summary::-webkit-details-marker{display:none}
+  .acc>summary::after{content:"＋";margin-left:auto;color:var(--deep);font-size:18px;flex:none;font-family:var(--sans)}
+  .acc[open]>summary::after{content:"－"}
+  .acc>summary:hover{background:#faf9f3}
+  .acc[open]>summary{background:#f4f6f1}
+  .vlabel{font-family:var(--mono);font-size:11.5px;font-weight:700;color:#fff;background:var(--deep);padding:4px 10px;border-radius:7px;flex:none}
+  .vlabel.fail{background:#8a9690}.vlabel.best{background:var(--green)}.vlabel.gma{background:#7a8f86}
+  .acc .oneliner{font-weight:500;color:var(--muted);font-size:13px;font-family:var(--sans)}
+  @media(min-width:720px){.acc .oneliner{margin-left:auto;margin-right:32px;text-align:right;max-width:48%}}
+  .acc-body{padding:4px 20px 22px;border-top:1px solid var(--line)}
+  .acc-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+  @media(max-width:680px){.acc-cols{grid-template-columns:1fr}}
+  .acc-cols h5{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--coral-ink)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chips span{font-family:var(--mono);font-size:12px;background:#eef2ec;border:1px solid var(--line);border-radius:7px;padding:4px 9px;color:#33433d}
+  .chips span b{color:var(--deep)}
+  .takeaway{margin:16px 0 0;padding:13px 16px;background:var(--sage);border:1px solid var(--sage-line);border-radius:10px;font-size:13.5px;color:#33433d}
+  .takeaway b{color:var(--deep)}
+  .statusbox{font-family:var(--mono);font-size:13px;background:#15201d;color:#dfeae3;border-radius:12px;padding:18px 20px;line-height:2;margin-top:8px}
+  .statusbox .c{color:#7f978f}.statusbox b{color:#e7c9a3}
+
+  /* videos */
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:860px){.vgrid{grid-template-columns:1fr}}
+  .vcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+  .vcard video{display:block;width:100%;background:#0d1614;aspect-ratio:16/9;object-fit:cover}
+  .vcard .vbody{padding:16px 18px}
+  .vcard .vtag{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-ink);margin:0 0 5px}
+  .vcard h3{margin:0 0 6px;font-size:17px}
+  .vcard p{margin:0 0 11px;color:var(--muted);font-size:13.5px}
+  .metricrow{display:flex;flex-wrap:wrap;gap:7px}
+  .metricrow span{font-family:var(--mono);font-size:12px;background:#eef2ec;border:1px solid var(--line);border-radius:7px;padding:4px 9px;color:#33433d}
+  .metricrow span b{color:var(--green)}
+  .vstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:10px}
+  @media(max-width:900px){.vstrip{grid-template-columns:repeat(2,1fr)}}
+  .vmini{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .vmini video{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;background:#0d1614}
+  .vmini .cap{padding:9px 11px;font-size:12px}
+  .vmini .cap b{font-family:var(--mono);color:var(--deep);display:block;font-size:13px}
+  .vmini .cap small{color:var(--muted)}
+  .note-inline{font-size:13px;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:10px;padding:12px 16px;margin-top:16px}
+
+  /* code section */
+  .code-sec{background:linear-gradient(180deg,#16323a,#1f4e5a);color:#e9f2f1}
+  .code-sec .seclabel{color:#e7c9a3}.code-sec .seclabel::before{background:#e7c9a3}
+  .code-sec h2.title{color:#fff}.code-sec .lead{color:#bcd3d8}
+  .featgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:6px 0 30px}
+  @media(max-width:760px){.featgrid{grid-template-columns:1fr}}
+  .feat{display:flex;flex-direction:column;gap:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:18px 20px;color:#eef5f4;transition:.15s}
+  .feat:hover{background:rgba(255,255,255,.12);text-decoration:none;transform:translateY(-2px)}
+  .feat .ico{font-size:19px}
+  .feat b{font-size:15.5px;color:#fff;font-family:var(--serif)}
+  .feat small{color:#a8c6cb;font-size:12.5px}
+  .feat .open{margin-top:5px;font-size:12px;color:#e7c9a3;font-weight:700;letter-spacing:.06em}
+  .foldertable{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:14px;overflow:hidden;margin-bottom:28px}
+  .foldertable table{min-width:540px}
+  .code-sec thead th{background:rgba(0,0,0,.25);color:#e9f2f1}
+  .code-sec tbody td,.code-sec tbody th{border-top:1px solid rgba(255,255,255,.10);color:#dbe8e7}
+  .code-sec tbody tr:nth-child(even){background:rgba(255,255,255,.03)}
+  .code-sec tbody th{color:#fff}
+  .code-sec .folder{font-family:var(--mono);color:#e7c9a3;font-size:13px}
+  .quicklinks{display:flex;flex-wrap:wrap;gap:9px}
+  .quicklinks a{font-family:var(--mono);font-size:12.5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);color:#dbe8e7;padding:7px 13px;border-radius:9px}
+  .quicklinks a:hover{background:rgba(255,255,255,.14);text-decoration:none;color:#fff}
+  .runhint{margin-top:24px;font-family:var(--mono);font-size:12.5px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:15px 18px;color:#cfe1e4;line-height:1.9}
+  .runhint .c{color:#8fb2b8}
+
+  footer{background:#13201d;color:#9fb3ac;padding:42px clamp(16px,4vw,40px);text-align:center;font-size:13px}
+  footer .more{display:inline-block;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 18px;color:#cfe1e4;margin-bottom:16px;font-size:12.5px}
+  footer b{color:#dbe8e7}
+  #toTop{position:fixed;right:18px;bottom:18px;z-index:40;width:44px;height:44px;border-radius:50%;border:none;background:var(--deep);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.2s}
+  #toTop.show{opacity:1;pointer-events:auto}
+  #toTop:hover{background:var(--deep-2)}
+  @media(max-width:560px){.card{padding:20px 16px}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="brand">電腦與物理 · TD3 × Ant-v5<small>完整實驗數據</small></div>
+  <div class="links">
+    <a href="#overview">版本總覽</a>
+    <a href="#metrics">九大指標</a>
+    <a href="#result">最終成果</a>
+    <a href="#data">完整數據</a>
+    <a href="#tbanalysis">TB 分析</a>
+    <a href="#versions">各版本詳解</a>
+    <a href="#validation">穩健性驗證</a>
+    <a href="#videos">成果影片</a>
+    <a href="#code">程式碼</a>
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="kicker">TD3 · Stable Baselines3 · MuJoCo Ant-v5</p>
+    <h1>四足步態實驗 · 完整數據附錄</h1>
+    <p class="subtitle">本頁收錄 <em>簡報未呈現</em> 的逐版 reward 設定、九大量化指標、完整比較表與多 seed 驗證；所有數據依實驗編號（03–15）對照記錄。</p>
+    <div class="authors">
+      <span class="chip"><b>陳俊融</b><small>411233006</small></span>
+      <span class="chip"><b>吳冠霆</b><small>411233013</small></span>
+    </div>
+    <div class="techtags"><span>TD3</span><span>SB3</span><span>MuJoCo Ant-v5</span><span>105 維觀測 · 8 維動作</span></div>
+  </div>
+</header>
+
+<!-- ===================== 版本總覽 ===================== -->
+<section id="overview">
+  <div class="wrap">
+    <p class="seclabel">版本總覽</p>
+    <h2 class="title">模型演進與代號對照</h2>
+    <p class="lead">希臘字母為簡報代號，括號內為實驗編號（影片、程式碼、下方數據表皆以編號命名，可交叉對照）。全部模型訓練步數為 1M。</p>
+
+    <div class="vermap" style="margin-top:28px">
+      <p class="stage-lbl">起點</p>
+      <div class="vstage">
+        <div class="vbox"><div class="hd"><span class="gk">α ALPHA</span><span class="id">自寫 TD3</span></div><p>自寫 TD3、未建指標；站著有收入、暴衝、出界、動作太抖。</p></div>
+      </div>
+      <div class="arrow">↓</div>
+      <p class="stage-lbl">自然步態基準</p>
+      <div class="vstage">
+        <div class="vbox"><div class="hd"><span class="gk">β BETA</span><span class="id">exp 03</span></div><p>改用 SB3 TD3 + 步態 wrapper，可計算九種指標，看起來最自然——但 seed 不穩。</p></div>
+      </div>
+      <div class="arrow">↓</div>
+      <p class="stage-lbl">兩條改良分支</p>
+      <div class="vstage">
+        <div class="vbox best"><div class="hd"><span class="gk">β′ BETA′</span><span class="id">exp 12@25k</span></div><p>載入成功的 BETA 再做 gait gate 微調；12@25k 為目前指標最佳成品。</p></div>
+        <div class="vbox"><div class="hd"><span class="gk">γ GAMMA</span><span class="id">exp 04–08</span></div><p>換 reward 做參數搜尋，訓練更穩、指標漂亮，但觀感較機械。</p></div>
+      </div>
+      <div class="arrow">↓</div>
+      <p class="stage-lbl">穩定化最終分支</p>
+      <div class="vstage">
+        <div class="vbox"><div class="hd"><span class="gk">θ THETA</span><span class="id">exp 15 / 15A</span></div><p>不換最終 reward，只用 ctrl 排程修早期 fast-fall；可重現、指標漂亮、觀感自然。</p></div>
+      </div>
+    </div>
+
+    <h3 style="font-size:18px;margin:38px 0 14px">每一版一句話定位</h3>
+    <div class="olgrid">
+      <div class="oli" style="--ac:#1f4e5a"><span class="olk">β</span><span class="oln">03</span><span class="olt">最自然，但從零訓練成功率只有 1/3</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">04</span><span class="olt">改用 progress，穩定會走但抖、超速</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">05</span><span class="olt">在 04 上加 gait、姿態、平滑，仍超速</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">06</span><span class="olt">Progress 系列最平滑，但速度偏慢</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">07</span><span class="olt">Progress 系列速度最準、最平衡，但不如 03 自然</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">08</span><span class="olt">Gait 代理指標最好，但肉眼較機械、耗能高</span></div>
+      <div class="oli" style="--ac:#7a8f86"><span class="olk">γ</span><span class="oln">09</span><span class="olt">更重 smooth / ctrl 的未完成實驗</span></div>
+      <div class="oli" style="--ac:#b08a5a"><span class="olk">—</span><span class="oln">10</span><span class="olt">證明只換 legacy gait 無法複製 03</span></div>
+      <div class="oli" style="--ac:#b08a5a"><span class="olk">—</span><span class="oln">11</span><span class="olt">直接 gate 掉 standing gait，cold start 失敗</span></div>
+      <div class="oli" style="--ac:#2f8f4e"><span class="olk">β′</span><span class="oln">12@25k</span><span class="olt">目前最佳成品：成功 03 經 gate 微調 25k</span></div>
+      <div class="oli" style="--ac:#2f8f4e"><span class="olk">β′</span><span class="oln">12 final</span><span class="olt">同一場微調的 120k 最後模型，速度已漂慢</span></div>
+      <div class="oli" style="--ac:#b08a5a"><span class="olk">—</span><span class="oln">13</span><span class="olt">Multi-seed 證明 03→12 不穩，03 成功率 1/3</span></div>
+      <div class="oli" style="--ac:#b08a5a"><span class="olk">—</span><span class="oln">14</span><span class="olt">驗證 07 progress 底座是否跨 seed 穩定</span></div>
+      <div class="oli" style="--ac:#2b6f7d"><span class="olk">θ</span><span class="oln">15 / 15A</span><span class="olt">只修 03 早期 ctrl，保留自然感並提高成功率</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 九大指標 ===================== -->
+<section id="metrics" class="band">
+  <div class="wrap">
+    <p class="seclabel">量化方法</p>
+    <h2 class="title">九大步態指標定義</h2>
+    <p class="lead">把「自然、穩定、省力」拆成可量化、可比較的數字，作為下方所有數據表的欄位定義。</p>
+    <div class="tablewrap" style="margin-top:26px">
+      <table>
+        <thead><tr><th>類別</th><th>指標</th><th>中文名稱</th><th>解釋</th><th>理想方向</th></tr></thead>
+        <tbody>
+          <tr><td class="cat-cell" rowspan="3">走路穩定</td><td class="mono-name">episode_length</td><td>存活步數</td><td>一回合能撐多久，有沒有中途摔倒。</td><td class="dir">越高越好（滿回合 = 1000）</td></tr>
+          <tr><td class="mono-name">mean_speed</td><td>平均速度</td><td>Ant 是否真的往前走，速度是否接近目標。</td><td class="dir">接近 1.0 m/s</td></tr>
+          <tr><td class="mono-name">speed_error</td><td>速度誤差</td><td>實際速度和目標速度的差距。</td><td class="dir">越低越好</td></tr>
+          <tr><td class="cat-cell" rowspan="3">步態品質</td><td class="mono-name">contact_regularity</td><td>接觸週期性</td><td>對四隻腳的接觸序列做自相關，取主要週期峰值平均。</td><td class="dir">越高越好</td></tr>
+          <tr><td class="mono-name">anti_phase</td><td>對角交替度</td><td>兩組對角腳是否輪流踩地（trot）。diag1 = mean(FL, BR)、diag2 = mean(FR, BL)，再算 abs(diag1 − diag2)。</td><td class="dir">越高越好</td></tr>
+          <tr><td class="mono-name">diagonal_sync</td><td>對角同步度</td><td>同組對角腳是否一致：0.5 × ((1 − |FL − BR|) + (1 − |FR − BL|))。</td><td class="dir">越高越好（搭配 anti_phase 看）</td></tr>
+          <tr><td class="cat-cell" rowspan="3">其他</td><td class="mono-name">action_jerk</td><td>動作抖動量</td><td>相鄰兩步 action 差值的平方和平均：mean(sum((aₜ − aₜ₋₁)²))。</td><td class="dir">越低越好</td></tr>
+          <tr><td class="mono-name">transport_cost / CoT</td><td>單位距離能耗</td><td>全 episode 控制力平方和除以前進距離：sum(action²) / distance。</td><td class="dir">越低越好</td></tr>
+          <tr><td class="mono-name">uprightness</td><td>軀幹直立度</td><td>從 torso quaternion 算身體 z 軸朝上程度：1 − 2(qx² + qy²)。</td><td class="dir">越接近 1 越好</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 最終成果 ===================== -->
+<section id="result">
+  <div class="wrap">
+    <p class="seclabel">最終成果</p>
+    <h2 class="title">三個代表模型的九大指標</h2>
+    <p class="lead">簡報定案的三個模型對照；每欄最佳值以綠色標示。</p>
+    <div class="tablewrap" style="margin-top:26px">
+      <table>
+        <thead><tr><th>模型</th><th>定位</th><th class="num">ep_len</th><th class="num">mean_speed</th><th class="num">speed_error</th><th class="num">jerk ↓</th><th class="num">CoT ↓</th><th class="num">diag_sync</th><th class="num">upright</th></tr></thead>
+        <tbody>
+          <tr><th>BETA <span class="gtag" style="margin-left:4px">03</span></th><td>自然步態基準</td><td class="num">1000</td><td class="num">0.940</td><td class="num">0.140</td><td class="num best-cell">0.028</td><td class="num">1.02</td><td class="num">0.712</td><td class="num">0.986</td></tr>
+          <tr><th>BETA′@25k <span class="gtag b" style="margin-left:4px">12</span></th><td>最佳指標 checkpoint</td><td class="num">1000</td><td class="num best-cell">0.983</td><td class="num best-cell">0.108</td><td class="num">0.037</td><td class="num best-cell">0.960</td><td class="num">0.678</td><td class="num">0.990</td></tr>
+          <tr><th>THETA <span class="gtag" style="background:var(--deep);margin-left:4px">15A</span></th><td>穩定化最終模型</td><td class="num">1000</td><td class="num">0.913</td><td class="num">0.122</td><td class="num">0.052</td><td class="num">1.62</td><td class="num best-cell">0.744</td><td class="num best-cell">0.991</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="resultnote">
+      <h4>成果簡述</h4>
+      <p>THETA 成功修掉 fast-fall，能穩定走滿 1000 steps，速度接近目標且保持低抖動與高直立度；BETA′ / 12@25k 則是九大指標最漂亮的 checkpoint；BETA 是自然步態的視覺基準，但從零訓練 seed 成功率僅約 1/3。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 完整數據 ===================== -->
+<section id="data" class="band">
+  <div class="wrap">
+    <p class="seclabel">完整數據</p>
+    <h2 class="title">全版本量化結果總表</h2>
+    <p class="lead">所有跑出同規格結果的版本並列；「—」代表現有紀錄無該數字。09、11、13、14、15 非同規格完整成品，列於下方詳解而不硬塞此表。各欄最佳值以綠色標示。</p>
+    <div class="tablewrap" style="margin-top:26px">
+      <table>
+        <thead><tr><th>代號</th><th>版本</th><th class="num">Speed</th><th class="num">Speed err ↓</th><th class="num">Regularity</th><th class="num">Anti-phase</th><th class="num">Diag sync</th><th class="num">Jerk ↓</th><th class="num">CoT ↓</th><th class="num">Upright</th></tr></thead>
+        <tbody>
+          <tr><td><span class="gtag">β</span></td><th>03 seed 0</th><td class="num">0.940</td><td class="num">0.140</td><td class="num">0.239</td><td class="num">0.209</td><td class="num best-cell">0.712</td><td class="num best-cell">0.028</td><td class="num">1.02</td><td class="num">0.986</td></tr>
+          <tr><td><span class="gtag g">γ</span></td><th>04</th><td class="num">1.290</td><td class="num">0.328</td><td class="num">0.334</td><td class="num">0.321</td><td class="num">0.601</td><td class="num">0.329</td><td class="num">5.56</td><td class="num">0.982</td></tr>
+          <tr><td><span class="gtag g">γ</span></td><th>05</th><td class="num">1.370</td><td class="num">0.397</td><td class="num">0.355</td><td class="num">0.326</td><td class="num">0.677</td><td class="num">0.158</td><td class="num">2.85</td><td class="num">0.977</td></tr>
+          <tr><td><span class="gtag g">γ</span></td><th>06</th><td class="num">0.830</td><td class="num">0.219</td><td class="num">0.344</td><td class="num">0.212</td><td class="num">0.552</td><td class="num">0.087</td><td class="num">2.62</td><td class="num">0.989</td></tr>
+          <tr><td><span class="gtag g">γ</span></td><th>07 seed 0</th><td class="num">0.958</td><td class="num best-cell">0.100</td><td class="num">0.308</td><td class="num">0.267</td><td class="num">0.544</td><td class="num">0.120</td><td class="num">3.01</td><td class="num">0.979</td></tr>
+          <tr><td><span class="gtag g">γ</span></td><th>08</th><td class="num">0.922</td><td class="num">0.168</td><td class="num best-cell">0.380</td><td class="num best-cell">0.358</td><td class="num">0.575</td><td class="num">0.133</td><td class="num">4.16</td><td class="num best-cell">0.993</td></tr>
+          <tr><td><span class="gtag f">—</span></td><th>10</th><td class="num">0.886</td><td class="num">0.160</td><td class="num">0.128</td><td class="num">0.175</td><td class="num">0.606</td><td class="num">0.216</td><td class="num">4.91</td><td class="num">0.985</td></tr>
+          <tr><td><span class="gtag b">β′</span></td><th>12 final</th><td class="num">0.880</td><td class="num">0.181</td><td class="num">—</td><td class="num">—</td><td class="num">0.689</td><td class="num">0.042</td><td class="num">1.09</td><td class="num">0.985</td></tr>
+          <tr><td><span class="gtag b">β′</span></td><th>12 @ 25k</th><td class="num best-cell">0.983</td><td class="num">~0.108</td><td class="num">—</td><td class="num">0.245</td><td class="num">0.678</td><td class="num">0.037</td><td class="num best-cell">0.960</td><td class="num">0.990</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tnote">Speed 理想值為接近 1.0 m/s（非越大越好）；Speed err / Jerk / CoT 越低越好；Regularity / Anti-phase / Diag sync / Upright 越高越好。</p>
+
+    <h3 style="font-size:18px;margin:40px 0 14px">數據觀察：指標彼此 trade-off</h3>
+    <p class="lead" style="margin-bottom:18px">建立指標後發現，Ant 不是「某一項變好就整體變好」；各項指標之間會互相拉扯。</p>
+    <ol class="corelist">
+      <li><b>ep_len 高</b> ≠ 速度正確（04、05 走滿 1000 卻嚴重超速）</li>
+      <li><b>anti_phase / regularity 高</b> ≠ 觀感一定自然（08 指標最好卻最機械）</li>
+      <li><b>jerk 低 / CoT 低</b> ≠ 速度一定足夠（06 最平滑卻偏慢）</li>
+      <li><b>seed 0 成功</b> ≠ multi-seed 穩定（03 成功率僅 1/3）</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===================== TensorBoard 分析 ===================== -->
+<section id="tbanalysis">
+  <div class="wrap">
+    <p class="seclabel">TensorBoard 分析</p>
+    <h2 class="title">從訓練曲線到最終 scorecard</h2>
+    <p class="lead">直接讀 TensorBoard event 檔（<code>RL_Labcowork/output/**/tb</code>）整理出的圖表，把「reward 會騙人 → 指標互相 trade-off → 用 scorecard 共同檢查」這條主線用數據呈現。點圖可放大。</p>
+
+    <div class="figrow" style="margin-top:30px">
+      <figure class="figfig"><img src="analysis/figures/alpha_beta_context.png" alt="Alpha / Beta 早期困境曲線" loading="lazy"></figure>
+      <div class="figtext">
+        <p class="figtag">困境一 · Reward 高 ≠ 步態可信</p>
+        <h3>Alpha 有 reward，卻沒有步態 scorecard</h3>
+        <p>左圖：Alpha 自寫 TD3 的 <code>Eval/reward</code> 一路上升，能確認模型有在學——但回答不了「是否自然、穩定、省力地走」。</p>
+        <p>右圖：Beta 改用 SB3 + RealisticGaitWrapper 後開始記錄 <code>gait/x_velocity</code>、<code>contacts/diagonal_sync</code>，主觀也最自然；但 multi-seed 才暴露 seed 1/2 會 fast-fall。</p>
+        <ul class="clean"><li>Alpha：看得到 reward，沒有同規格 gait 指標。</li><li>Beta：自然基準成立，但 seed 穩定性不足。</li></ul>
+      </div>
+    </div>
+
+    <div class="figrow flip">
+      <figure class="figfig"><img src="analysis/figures/tb_evaluation_curves.png" alt="各分支 TensorBoard 評估曲線" loading="lazy"></figure>
+      <div class="figtext">
+        <p class="figtag">困境二 · 指標不會同時最佳</p>
+        <h3>各分支的評估曲線</h3>
+        <p>六張子圖（存活步數、速度、速度誤差、jerk、CoT、對角同步）對照 Gamma 04 / 06 / 07 / 08、BetaPrime 與 Theta-15A。</p>
+        <p><b>存活步數</b>幾乎都能很快穩到 1000，但<b>速度、jerk、CoT、diagonal_sync 不會同時收斂到最佳</b>——這正是要建立九大指標的原因。</p>
+        <p class="tnote" style="margin-top:2px">註：Gamma-05 本機無 event 檔，曲線不含 05。</p>
+      </div>
+    </div>
+
+    <div class="figrow">
+      <figure class="figfig"><img src="analysis/figures/tradeoff_scatter.png" alt="指標 trade-off 散布圖" loading="lazy"></figure>
+      <div class="figtext">
+        <p class="figtag">為什麼單一指標不夠</p>
+        <h3>Trade-off 散布圖</h3>
+        <p>三張散布圖：速度 vs jerk、速度 vs 能耗（CoT）、步態代理（anti_phase）vs 平滑（jerk）。</p>
+        <p>Beta、BetaPrime-25k、Theta-15A 聚在<b>低 jerk／低 CoT</b> 的甜蜜區；Gamma 系列即使某些單項突出，仍被拉到高能耗或高抖動。</p>
+        <ul class="clean"><li>速度準 ≠ 最平滑。</li><li>anti_phase / regularity 漂亮 ≠ CoT 與觀感最好。</li></ul>
+      </div>
+    </div>
+
+    <div class="figrow flip">
+      <figure class="figfig"><img src="analysis/figures/final_scorecard_bars.png" alt="最終模型 scorecard 長條圖" loading="lazy"></figure>
+      <div class="figtext">
+        <p class="figtag">解決 · 用 scorecard 共同檢查</p>
+        <h3>最終模型 scorecard 比較</h3>
+        <p>六項指標長條圖（速度、速度誤差、jerk、CoT、對角同步、直立度）並排所有版本；最終不靠單一 reward，而是九項一起看：</p>
+        <ul class="clean">
+          <li><b>BetaPrime-25k</b>：速度最準（0.983）、CoT 最低（0.960）。</li>
+          <li><b>Theta-15A</b>：對角同步最高（0.744）、直立度最高（0.991），穩定走滿 1000。</li>
+          <li>Gamma-04 / 05 雖走得久，但速度誤差與 jerk 明顯偏高。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 各版本詳解 ===================== -->
+<section id="versions">
+  <div class="wrap">
+    <p class="seclabel">逐版數據</p>
+    <h2 class="title">各版本 reward 設定與結果</h2>
+    <p class="lead">展開每一版可看到「相對前一版改了什麼 reward」「跑出的指標」與「解讀」。這是 PPT 放不下、但決定每個數字背後原因的細節。</p>
+
+    <!-- BETA -->
+    <p class="acc-group-lbl">β · 自然步態基準</p>
+    <details class="acc" open>
+      <summary><span class="vlabel">β · 03</span> 第一次走得自然，但訓練很看運氣<span class="oneliner">把目標從「跑得快」改成「速度接近 1.0 且省力、對角協調」</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div>
+            <h5>Reward 設定</h5>
+            <div class="codeblock">forward_mode      = <span class="k">deviation</span>
+reward_structure  = <span class="k">additive</span>
+gait_mode         = <span class="k">legacy</span>
+ctrl_weight   = <span class="k">5.0</span>   <span class="c"># 動作非常貴</span>
+gait_weight   = <span class="k">2.0</span>
+posture_weight= <span class="k">2.0</span>
+alive_weight  = <span class="k">1.0</span>
+
+<span class="c"># forward reward</span>
+r_forward = -fw * |x_vel - target|
+r = r_fwd + r_alive + r_ctrl + r_gait + r_posture</div>
+          </div>
+          <div>
+            <h5>結果（seed 0）</h5>
+            <div class="chips">
+              <span>ep_len <b>1000</b></span><span>speed <b>0.940</b></span><span>err <b>0.140</b></span>
+              <span>diag_sync <b>0.712</b></span><span>anti <b>0.209</b></span><span>jerk <b>0.028</b></span>
+              <span>CoT <b>1.02</b></span><span>upright <b>0.986</b></span>
+            </div>
+          </div>
+        </div>
+        <p class="takeaway"><b>為什麼自然：</b>ctrl=5 很重，模型不能大力甩腳，只能找省力走法。<b>問題：</b>站著速度 0 會被 deviation 扣 −1；早期隨機動作 × ctrl=5 產生巨大負 reward，模型容易學成「快速摔倒止損」。13 證明從零訓練成功率僅 1/3。</p>
+      </div>
+    </details>
+
+    <!-- GAMMA -->
+    <p class="acc-group-lbl">γ · progress reward 搜尋（04–09）</p>
+    <details class="acc">
+      <summary><span class="vlabel gma">γ · 04</span> 改成 progress，先求穩定會走<span class="oneliner">站著只是沒前進分、不再被扣負分，避免 fast-fall</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>相對 03 的修改</h5><div class="codeblock">forward_mode    : deviation → <span class="k">progress</span>
+reward_structure: additive  → <span class="k">forward_gated</span>
+gait_mode       : legacy    → <span class="k">antiphase_gated</span>
+ctrl  : 5.0 → <span class="k">0.5</span>
+alive : 1.0 → <span class="k">0.5</span>
+smooth: 0   → <span class="k">0.02</span>
+tilt  : 0   → <span class="k">0.2</span></div></div>
+          <div><h5>結果</h5><div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>1.29</b></span><span>err <b>0.328</b></span><span>jerk <b>0.329</b></span><span>CoT <b>5.56</b></span></div></div>
+        </div>
+        <p class="takeaway">穩定會走，但超速、很抖、很費力——只適合當「穩定結構」的起點。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel gma">γ · 05</span> 加強 gait、姿態與平滑<span class="oneliner">步態協調變好、抖動下降，但仍超速</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>相對 04 的修改</h5><div class="codeblock">ctrl   : 0.5  → <span class="k">1.0</span>
+gait   : 2.0  → <span class="k">3.0</span>
+posture: 0.5  → <span class="k">1.5</span>
+smooth : 0.02 → <span class="k">0.25</span>
+tilt   : 0.2  → <span class="k">0.8</span></div></div>
+          <div><h5>結果</h5><div class="chips"><span>speed <b>1.37</b></span><span>err <b>0.397</b></span><span>reg <b>0.355</b></span><span>anti <b>0.326</b></span><span>diag <b>0.677</b></span><span>jerk <b>0.158</b></span><span>CoT <b>2.85</b></span></div></div>
+        </div>
+        <p class="takeaway">協調比 04 好、抖動減少，但還是超速，主觀仍不像 03 自然。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel gma">γ · 06</span> 修超速、加重平滑<span class="oneliner">progress 系列最平滑，但速度偏慢</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>相對 05 的修改</h5><div class="codeblock">forward gate → <span class="k">tent</span>  <span class="c"># 速度=1.0 分最高，太快降分</span>
+ctrl  : 1.0  → <span class="k">1.5</span>
+smooth: 0.25 → <span class="k">0.40</span></div></div>
+          <div><h5>結果</h5><div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>0.83</b></span><span>err <b>0.219</b></span><span>jerk <b>0.087</b></span><span>CoT <b>2.62</b></span><span>upright <b>0.989</b></span></div></div>
+        </div>
+        <p class="takeaway">最平滑的版本，但速度偏慢，步態被磨得比較柔弱。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel gma">γ · 07</span> 把速度與踏步拉回來<span class="oneliner">progress 系列速度最準、最平衡（穩定底座候選）</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>相對 06 的修改</h5><div class="codeblock">gait  : 3.0  → <span class="k">4.5</span>
+ctrl  : 1.5  → <span class="k">1.2</span>
+smooth: 0.40 → <span class="k">0.30</span></div></div>
+          <div><h5>結果（seed 0）</h5><div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>0.958</b></span><span>err <b>0.100</b></span><span>reg <b>0.308</b></span><span>anti <b>0.267</b></span><span>diag <b>0.544</b></span><span>jerk <b>0.120</b></span><span>CoT <b>3.01</b></span><span>upright <b>0.979</b></span></div></div>
+        </div>
+        <p class="takeaway">速度控制 progress 系列最好，但 jerk 約為 03 的 4.3 倍、CoT 約 3 倍——會走、速度準，但較像機器踩節拍。14 即用來驗證它跨 seed 是否穩定。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel gma">γ · 08</span> 追求更強的對角交替<span class="oneliner">gait 代理指標最好，但更用力、CoT 更差</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>相對 07 的修改</h5><div class="codeblock">intra_weight: 0.25 → <span class="k">0.35</span>
+smooth      : 0.30 → <span class="k">0.35</span></div></div>
+          <div><h5>結果</h5><div class="chips"><span>speed <b>0.922</b></span><span>err <b>0.168</b></span><span>reg <b>0.380</b></span><span>anti <b>0.358</b></span><span>diag <b>0.575</b></span><span>jerk <b>0.133</b></span><span>CoT <b>4.16</b></span><span>upright <b>0.993</b></span></div></div>
+        </div>
+        <p class="takeaway">regularity、anti-phase、uprightness 最好，但踏步更用力。證明「週期性與 gait 指標漂亮 ≠ 主觀像真實動物」。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel fail">γ · 09</span> 再加重 smooth / ctrl / intra<span class="oneliner">未完整跑完，不列量化結果</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>設定</h5><div class="codeblock">ctrl  = <span class="k">2.0</span>
+smooth= <span class="k">0.50</span>
+intra = <span class="k">0.40</span>
+gait  = <span class="k">4.5</span></div></div>
+          <div><h5>狀態</h5><div class="chips"><span>未完整訓練</span></div></div>
+        </div>
+        <p class="takeaway">沒跑完，因此不列數據、也不用來下結論。</p>
+      </div>
+    </details>
+
+    <!-- 對照 / 失敗實驗 -->
+    <p class="acc-group-lbl">對照與失敗實驗（10、11）</p>
+    <details class="acc">
+      <summary><span class="vlabel fail">10</span> 把 03 的 legacy gait 接到 forward gate<span class="oneliner">證明只換 legacy gait 無法複製 03 的自然</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>設定</h5><div class="codeblock"><span class="k">legacy gait</span>
++ progress / tent 速度
++ forward_gated</div></div>
+          <div><h5>結果</h5><div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>0.886</b></span><span>err <b>0.160</b></span><span>reg <b>0.128</b></span><span>anti <b>0.175</b></span><span>diag <b>0.606</b></span><span>jerk <b>0.216</b></span><span>CoT <b>4.91</b></span></div></div>
+        </div>
+        <p class="takeaway">比預期差。03 的自然度來自整套 reward 結構 + 重 ctrl + 訓練過程，不是單一 gait 公式。</p>
+      </div>
+    </details>
+    <details class="acc">
+      <summary><span class="vlabel fail">11</span> 03 + gait speed gate，從零訓練<span class="oneliner">直接 gate 掉 standing gait，cold start 失敗</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>唯一修改</h5><div class="codeblock">gait_speed_gate = <span class="k">0.3</span>
+<span class="c"># 站著 gait 分=0，速度 >0.3 才恢復</span></div></div>
+          <div><h5>結果</h5><div class="chips"><span>跑到 ~300k</span><span>仍 ~13 steps 就摔</span></div></div>
+        </div>
+        <p class="takeaway">03 的站立 gait 分不只是漏洞，也在 early training 提供「先站穩」的學習鷹架；第一步就拿掉會讓 cold start 更難。</p>
+      </div>
+    </details>
+
+    <!-- BETA' -->
+    <p class="acc-group-lbl">β′ · 載入成功 03 再微調（12）</p>
+    <details class="acc">
+      <summary><span class="vlabel best">β′ · 12</span> 載入成功的 03，加 gate 微調<span class="oneliner">12@25k 是目前最佳單一模型；12 final 速度漂慢</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>微調流程（底座＝成功的 03 seed 0）</h5><div class="codeblock">載入 03 actor / critics
+→ 換成 03 + gait speed gate reward
+→ 清空 replay buffer
+→ learning rate → <span class="k">1e-4</span>
+→ exploration noise → <span class="k">0.03</span>
+→ 繼續微調 120k
+<span class="c"># 總量 = 03 (1.0M) + 12 (25k) = 1.025M</span></div></div>
+          <div>
+            <h5>12 @ 25k（早停甜蜜點）</h5>
+            <div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>0.983</b></span><span>err <b>~0.108</b></span><span>anti <b>0.245</b></span><span>diag <b>0.678</b></span><span>jerk <b>0.037</b></span><span>CoT <b>0.960</b></span><span>upright <b>0.990</b></span></div>
+            <h5 style="margin-top:14px">12 final（~120k）</h5>
+            <div class="chips"><span>speed <b>~0.88</b></span><span>err <b>~0.181</b></span><span>diag <b>0.689</b></span><span>jerk <b>0.042</b></span><span>CoT <b>1.09</b></span><span>upright <b>0.985</b></span></div>
+          </div>
+        </div>
+        <p class="takeaway">微調愈久策略往較慢速度漂移，故選 25k 早停。12@25k 保留 03 自然感又拿掉站著時的 gait 分，是目前最好的模型檔——但底座仍是那次幸運成功的 03 seed 0。</p>
+      </div>
+    </details>
+
+    <!-- THETA -->
+    <p class="acc-group-lbl">θ · 穩定化最終分支（15 / 15A）</p>
+    <details class="acc">
+      <summary><span class="vlabel" style="background:var(--deep)">θ · 15 / 15A</span> 小修 03 的 early training<span class="oneliner">最終 reward 仍＝03，只改早期 ctrl 排程修 fast-fall</span></summary>
+      <div class="acc-body">
+        <div class="acc-cols">
+          <div><h5>ctrl 時間排程（其餘維持 03）</h5><div class="codeblock">0 – 100k :  ctrl = <span class="k">0.5</span>
+100k–300k:  ctrl <span class="k">0.5 → 5.0</span> 線性
+300k+    :  ctrl = <span class="k">5.0</span>
+<span class="c"># 15A：提高 forward_weight 補速度，</span>
+<span class="c"># resume 時移除 schedule、固定 ctrl=5</span></div></div>
+          <div><h5>結果（15A，Theta final）</h5><div class="chips"><span>ep_len <b>1000</b></span><span>speed <b>0.913</b></span><span>err <b>0.122</b></span><span>jerk <b>0.052</b></span><span>CoT <b>1.62</b></span><span>diag <b>0.744</b></span><span>upright <b>0.991</b></span><span>stationary <b>0.002</b></span></div></div>
+        </div>
+        <p class="takeaway">早期低 ctrl 先學站穩、移動，會走後再把 ctrl 加回 5，最終回到 03 的省力目標。修掉 fast-fall、走滿整場、diagonal_sync 甚至高於 BETA；目前限制是仍需更多 seed（特別是 seed 2）驗證。</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ===================== 穩健性驗證 ===================== -->
+<section id="validation" class="band">
+  <div class="wrap">
+    <p class="seclabel">穩健性驗證</p>
+    <h2 class="title">Multi-seed 重現性（exp 13）</h2>
+    <p class="lead">13 不是新模型，而是把「03 → 12」整條流程用 seed 0 / 1 / 2 各跑一次，檢驗是否可重現。結論：03 從零訓練成功率僅 1/3。</p>
+    <div class="tablewrap" style="margin-top:24px">
+      <table>
+        <thead><tr><th>Seed</th><th>Stage 1：03（β）從零訓練 1M</th><th>Stage 2：載入 03 後 gate 微調（β′）</th></tr></thead>
+        <tbody>
+          <tr><th>0</th><td><b style="color:var(--green)">成功</b>，會走滿 1000 steps</td><td><b style="color:var(--green)">成功</b>，12@25k 成為冠軍</td></tr>
+          <tr><th>1</th><td><b style="color:var(--coral-ink)">失敗</b>，平均約 14.7 steps 就摔</td><td>底座已失敗，微調也失敗</td></tr>
+          <tr><th>2</th><td><b style="color:var(--coral-ink)">失敗</b>，平均約 16.2 steps 就摔</td><td>底座已失敗，微調也失敗</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="resultnote" style="margin-top:22px">
+      <h4>結論</h4>
+      <p>03 從零訓練成功率只有 1/3；12 的 gate 微調能改善「成功的 03」，但救不了本來就只會摔倒的底座。12@25k 是最佳成品，但「03 → 12」不是可靠的完整配方——這也是 THETA（15）想用 ctrl 排程解決的問題。</p>
+    </div>
+
+    <div class="statusbox">
+<span class="c"># 目前整體狀態</span>
+最好看的原始模型 ：03 seed 0（<b>β</b>）
+目前最佳模型檔   ：12@25k（<b>β′</b>）
+已證實不穩的底座 ：03 從零訓練
+穩定底座候選     ：07（<b>γ</b>），等待 14 multi-seed 結果
+自然＋穩定新嘗試 ：15 / 15A（<b>θ</b>），等待正式結果</div>
+  </div>
+</section>
+
+<!-- ===================== 成果影片 ===================== -->
+<section id="videos">
+  <div class="wrap">
+    <p class="seclabel">影片證據</p>
+    <h2 class="title">成果影片</h2>
+    <p class="lead">數字之外的步態實況。檔名依實驗編號，可對照上方數據。</p>
+    <div class="vgrid">
+      <div class="vcard">
+        <video src="videos/beta_prime_25k.mp4" muted loop playsinline preload="metadata" controls></video>
+        <div class="vbody">
+          <p class="vtag">β′ · exp 12 @ 25k</p>
+          <h3>最佳指標 checkpoint</h3>
+          <p>成功的 03 經 gait gate 微調 25k；速度最準、能耗最低。</p>
+          <div class="metricrow"><span>speed <b>0.983</b></span><span>jerk <b>0.037</b></span><span>CoT <b>0.960</b></span></div>
+        </div>
+      </div>
+      <div class="vcard">
+        <video src="videos/theta_15A.mp4" muted loop playsinline preload="metadata" controls></video>
+        <div class="vbody">
+          <p class="vtag">θ · exp 15A</p>
+          <h3>穩定化最終模型</h3>
+          <p>ctrl curriculum 從零訓練修掉 fast-fall，再補速度。</p>
+          <div class="metricrow"><span>speed <b>0.913</b></span><span>diag_sync <b>0.744</b></span><span>upright <b>0.991</b></span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:18px;margin:36px 0 12px">γ · GAMMA reward 搜尋過程（04 → 08，皆 1M step）</h3>
+    <div class="vstrip">
+      <div class="vmini"><video src="videos/gamma_04.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>04</b><small>超速、抖</small></div></div>
+      <div class="vmini"><video src="videos/gamma_05.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>05</b><small>加 gait/姿態</small></div></div>
+      <div class="vmini"><video src="videos/gamma_06.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>06</b><small>最平滑、偏慢</small></div></div>
+      <div class="vmini"><video src="videos/gamma_07.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>07</b><small>速度最準</small></div></div>
+      <div class="vmini"><video src="videos/gamma_08.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>08</b><small>gait 指標最佳</small></div></div>
+    </div>
+
+    <p class="note-inline">※ BETA（03）為自然步態視覺基準，本機未保留同規格錄影，故以其微調後代 BETA′ 影片代表該系列。下方對照可見同一場 12 微調至 ~100k 後速度漸漸漂慢，這正是選擇 25k 早停的原因。</p>
+    <div class="vstrip" style="grid-template-columns:repeat(2,1fr);max-width:540px;margin-top:16px">
+      <div class="vmini"><video src="videos/beta_prime_25k.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>12 @ 25k</b><small>甜蜜點 · speed 0.983</small></div></div>
+      <div class="vmini"><video src="videos/beta_prime_100k.mp4" muted loop playsinline preload="metadata" controls></video><div class="cap"><b>12 @ ~100k</b><small>同場 final · 速度漂慢</small></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 程式碼專區 ===================== -->
+<section id="code" class="code-sec">
+  <div class="wrap">
+    <p class="seclabel">附錄 · 程式碼</p>
+    <h2 class="title">給老師檢視的程式碼套件</h2>
+    <p class="lead">完整 TD3 × Ant-v5 期末專題程式碼，已整理成可在瀏覽器內閱讀的<b style="color:#fff">程式碼專區</b>：含每個模型的訓練腳本、共用工具、reward 設計規格與兩份網頁版報告，全部直接在頁面內檢視，不需下載原始檔。</p>
+
+    <div class="cta-row">
+      <a class="cta" href="code.html">開啟程式碼專區<span class="arw">→</span></a>
+      <a class="cta ghost" href="https://drive.google.com/drive/folders/1C_Oe4YrnoQ_YkCjxdLaRgnmEOLm1c8Au?usp=share_link" target="_blank" rel="noopener">雲端硬碟下載程式碼包<span class="arw">↗</span></a>
+    </div>
+    <p class="cta-sub">線上瀏覽：側欄檔案樹 ＋ 內嵌檢視器（Python 語法 highlight、Markdown 即時渲染）；或從雲端硬碟下載完整程式碼包。</p>
+
+    <h3 style="color:#fff;font-size:18px;margin:6px 0 14px">資料夾結構</h3>
+    <div class="foldertable tablewrap">
+      <table>
+        <thead><tr><th>資料夾</th><th>意義</th><th>主要內容</th></tr></thead>
+        <tbody>
+          <tr><th class="folder">alpha/</th><td>Alpha 模型</td><td>自寫 PyTorch TD3，reward shaping 起點</td></tr>
+          <tr><th class="folder">beta/</th><td>Beta 模型</td><td>SB3 TD3 + RealisticGaitWrapper，第一個自然步態版本</td></tr>
+          <tr><th class="folder">gamma/</th><td>Gamma reward 搜尋</td><td>04–08 reward 參數搜尋，處理站著、超速、抖動與步態 trade-off</td></tr>
+          <tr><th class="folder">beta_prime/</th><td>Beta Prime 模型</td><td>從 Beta checkpoint 做 gait gate curriculum 微調</td></tr>
+          <tr><th class="folder">theta/</th><td>Theta 最終線</td><td>用 ctrl curriculum 修 fast-fall，15A 為目前 Theta final</td></tr>
+          <tr><th class="folder">validation/</th><td>驗證腳本</td><td>multi-seed 與 scorecard 評估</td></tr>
+          <tr><th class="folder">tools/</th><td>共用工具</td><td>TD3 agent、gait wrapper、scorecard metrics、訓練骨架</td></tr>
+          <tr><th class="folder">specs/</th><td>設計筆記</td><td>重要 reward 設計與實驗規格</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="runhint">
+      <span class="c"># 從套件根目錄執行，需加上 PYTHONPATH=.</span><br>
+      cd &lt;程式碼套件資料夾&gt;<br>
+      PYTHONPATH=. python theta/train_theta.py<br>
+      <span class="c"># MuJoCo 離屏錄影 / Linux server 通常需要：</span> MUJOCO_GL=egl
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p><b>TD3 × MuJoCo Ant-v5 · 四足步態實驗數據附錄</b><br>電腦與物理 期末專題 ｜ 陳俊融 411233006 ｜ 吳冠霆 411233013</p>
+</footer>
+
+<div class="lb" id="lb"><img alt="放大圖"></div>
+<button id="toTop" aria-label="回到頂端">↑</button>
+
+<script>
+  const navLinks = [...document.querySelectorAll('.nav .links a')];
+  const map = new Map(navLinks.map(a => [a.getAttribute('href').slice(1), a]));
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const link = map.get(e.target.id);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  document.querySelectorAll('section[id]').forEach(s => io.observe(s));
+
+  const vids = [...document.querySelectorAll('video')];
+  vids.forEach(v => v.addEventListener('play', () => vids.forEach(o => { if (o !== v) o.pause(); })));
+
+  const toTop = document.getElementById('toTop');
+  addEventListener('scroll', () => toTop.classList.toggle('show', scrollY > 700), { passive: true });
+  toTop.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // lightbox for analysis figures
+  const lb = document.getElementById('lb'), lbImg = lb.querySelector('img');
+  document.querySelectorAll('.figfig img').forEach(im => im.addEventListener('click', () => { lbImg.src = im.src; lb.classList.add('show'); }));
+  lb.addEventListener('click', () => lb.classList.remove('show'));
+  addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('show'); });
+</script>
+</body>
+</html>
