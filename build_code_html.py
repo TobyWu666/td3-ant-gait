@@ -76,35 +76,19 @@ def lang_of(path):
     if path.endswith(".csv"): return "csv"
     return "txt"
 
-manifest, files = [], {}
-for path, group, desc in FILES_ORDER:
-    full = os.path.join(CODE, path)
-    if not os.path.exists(full):
-        print("WARN missing:", path); continue
-    with open(full, "rb") as f:
-        raw = f.read()
-    # scrub the personal folder name from displayed content (display-only; original files untouched)
-    try:
-        txt = raw.decode("utf-8")
-        txt = txt.replace("RLAP_TD3_for_teacher", "電腦與物理_TD3").replace("RLAP", "電腦與物理")
-        raw = txt.encode("utf-8")
-    except UnicodeDecodeError:
-        pass
-    fid = re.sub(r"[^a-zA-Z0-9]", "_", path)
-    files[fid] = base64.b64encode(raw).decode("ascii")
-    manifest.append({"id": fid, "path": path, "name": os.path.basename(path),
-                     "group": group, "lang": lang_of(path), "desc": desc})
+# scrub the personal folder names from displayed content (display-only; original files untouched)
+def scrub(txt):
+    return (txt.replace("RLAP_TD3_for_teacher", "電腦與物理_TD3")
+               .replace("RLAP_TD3_TB_analysis", "電腦與物理_TB分析")
+               .replace("RLAP_AI_usage_report", "電腦與物理_AI紀錄")
+               .replace("RLAP", "電腦與物理"))
 
-MANIFEST_JSON = json.dumps(manifest, ensure_ascii=False)
-FILES_JSON = json.dumps(files, ensure_ascii=False)
-GROUPS_JSON = json.dumps(GROUPS, ensure_ascii=False)
-
-HTML = r"""<!DOCTYPE html>
+TEMPLATE = r"""<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>程式碼專區 · 電腦與物理 · TD3 × Ant-v5</title>
+<title>__PAGE_TITLE__</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
@@ -203,7 +187,7 @@ HTML = r"""<!DOCTYPE html>
 <body>
 <div class="top">
   <a class="back" href="index.html">← 返回數據總覽</a>
-  <span class="tt">程式碼專區<small>電腦與物理 · TD3 × Ant-v5 期末專題</small></span>
+  <span class="tt">__BAR_TITLE__<small>__SUBTITLE__</small></span>
   <a class="gdrive" href="__DRIVE__" target="_blank" rel="noopener">☁ 雲端硬碟</a>
   <button class="menu" id="menuBtn" aria-label="檔案列表">☰</button>
 </div>
@@ -212,9 +196,9 @@ HTML = r"""<!DOCTYPE html>
   <div class="scrim" id="scrim"></div>
   <main class="main" id="main">
     <div class="welcome">
-      <h1>TD3 × Ant-v5 程式碼套件</h1>
-      <p>這裡收錄期末專題完整的訓練程式碼、共用工具、reward 設計規格與結果報告。左側依模型分組，點選任一檔案即可<strong>直接在本頁閱讀</strong>，不會下載或跳出原始檔。</p>
-      <div class="hint">建議閱讀順序：<b>套件總覽 README</b> → <b>報告／模型演進白話摘要</b> → 各模型訓練腳本（α → β → γ → β′ → θ）→ <b>共用工具</b> 與 <b>驗證</b>。</div>
+      <h1>__W_H1__</h1>
+      <p>__W_BODY__</p>
+      <div class="hint">__W_HINT__</div>
     </div>
   </main>
 </div>
@@ -347,7 +331,7 @@ function show(entry){
     blobUrl = URL.createObjectURL(blob);
     body = '<div class="viewer iframewrap"><div class="bar">📄 網頁報告於下方內嵌顯示</div><iframe src="'+blobUrl+'"></iframe></div>';
   }
-  main.innerHTML = '<p class="crumb">code / <b>'+esc(entry.path)+'</b></p><p class="fdesc">'+esc(entry.desc||'')+'</p>'+body;
+  main.innerHTML = '<p class="crumb">__CRUMB__ / <b>'+esc(entry.path)+'</b></p><p class="fdesc">'+esc(entry.desc||'')+'</p>'+body;
   main.scrollTop=0; window.scrollTo(0,0);
   if(window.innerWidth<=820) closeSide();
   location.hash = entry.id;
@@ -390,14 +374,87 @@ if(start) show(start);
 </html>
 """
 
-HTML = (HTML.replace("__MANIFEST__", MANIFEST_JSON)
-            .replace("__FILES__", FILES_JSON)
-            .replace("__GROUPS__", GROUPS_JSON)
-            .replace("__DRIVE__", DRIVE))
+def build(src_dir, out, page_title, bar_title, subtitle, w_h1, w_body, w_hint, crumb, groups, files_order):
+    manifest, files = [], {}
+    for path, group, desc in files_order:
+        full = os.path.join(src_dir, path)
+        if not os.path.exists(full):
+            print("WARN missing:", out, path); continue
+        with open(full, "rb") as f:
+            raw = f.read()
+        try:
+            raw = scrub(raw.decode("utf-8")).encode("utf-8")
+        except UnicodeDecodeError:
+            pass
+        fid = re.sub(r"[^a-zA-Z0-9]", "_", path)
+        files[fid] = base64.b64encode(raw).decode("ascii")
+        manifest.append({"id": fid, "path": path, "name": os.path.basename(path),
+                         "group": group, "lang": lang_of(path), "desc": desc})
+    html = (TEMPLATE
+            .replace("__PAGE_TITLE__", page_title)
+            .replace("__BAR_TITLE__", bar_title)
+            .replace("__SUBTITLE__", subtitle)
+            .replace("__W_H1__", w_h1)
+            .replace("__W_BODY__", w_body)
+            .replace("__W_HINT__", w_hint)
+            .replace("__CRUMB__", crumb)
+            .replace("__DRIVE__", DRIVE)
+            .replace("__MANIFEST__", json.dumps(manifest, ensure_ascii=False))
+            .replace("__FILES__", json.dumps(files, ensure_ascii=False))
+            .replace("__GROUPS__", json.dumps(groups, ensure_ascii=False)))
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html)
+    print("wrote %s | files: %d | %.1f KB" % (out, len(files), len(html) / 1024))
 
-with open(OUT, "w", encoding="utf-8") as f:
-    f.write(HTML)
 
-print("wrote", OUT)
-print("files embedded:", len(files))
-print("size: %.1f KB" % (len(HTML)/1024))
+# ---------------- code.html ----------------
+build(os.path.join(ROOT, "code"), os.path.join(ROOT, "code.html"),
+      "程式碼專區 · 電腦與物理 · TD3 × Ant-v5", "程式碼專區",
+      "電腦與物理 · TD3 × Ant-v5 期末專題",
+      "TD3 × Ant-v5 程式碼套件",
+      "這裡收錄期末專題完整的訓練程式碼、共用工具與 reward 設計規格。左側依模型分組，點選任一檔案即可<strong>直接在本頁閱讀</strong>，不會下載或跳出原始檔。",
+      "建議閱讀順序：<b>套件總覽 README</b> → 各模型訓練腳本（α → β → γ → β′ → θ）→ <b>共用工具</b> 與 <b>驗證</b>。",
+      "code", GROUPS, FILES_ORDER)
+
+# ---------------- ai.html ----------------
+AI_GROUPS = [
+    ("overview", "總覽 OVERVIEW"),
+    ("rules",    "AI 協作規範 RULES"),
+    ("handoff",  "Prompt／交接 HANDOFF"),
+    ("debug",    "Debug 日誌 LOGS"),
+    ("specs",    "任務規格 SPECS"),
+    ("tb",       "TensorBoard 分析"),
+]
+AI_FILES = [
+    ("README.md", "overview", "本紀錄包導覽與閱讀順序"),
+    ("AI_USAGE_REPORT.md", "overview", "AI 使用總報告：角色、貢獻、限制、人工決策"),
+    ("DEBUG_JOURNAL.md", "overview", "Debug 日誌：九個主要 bug／failure mode"),
+    ("AI_HANDOFF_RECORDS.md", "overview", "Claude／Codex／prompt／changelog 如何接力"),
+    ("EVIDENCE_INDEX.md", "overview", "所有原始證據檔位置對照"),
+
+    ("01_ai_rules/CLAUDE.md", "rules", "AI agent 協作規範與專案約束"),
+
+    ("02_prompt_handoff/initial_project_prompt_and_plan.md", "handoff", "初期專案 prompt 與規劃"),
+    ("02_prompt_handoff/project_context_summary.md", "handoff", "專案 context 摘要"),
+
+    ("03_debug_logs/CHANGELOG_experiment_log.md", "debug", "多輪實驗 changelog（問題→修改→結果→下一步）"),
+    ("03_debug_logs/alpha_training_run.log", "debug", "Alpha 訓練 log"),
+    ("03_debug_logs/beta_training_run.log", "debug", "Beta 訓練 log"),
+
+    ("04_specs_and_design/alpha_reward_modification_spec.md", "specs", "Alpha reward 修改規格"),
+    ("04_specs_and_design/alpha_standing_attractor_debug.md", "specs", "Alpha 站著不動 attractor debug"),
+    ("04_specs_and_design/beta_claude_task_spec.md", "specs", "Beta：Claude Code 任務規格"),
+    ("04_specs_and_design/gamma_claude_task_spec.md", "specs", "Gamma：Claude Code 任務規格"),
+    ("04_specs_and_design/beta_prime_followup_ai_spec.md", "specs", "BetaPrime 後續 AI 規格"),
+
+    ("05_tb_analysis/model_analysis_from_tb.md", "tb", "從 TensorBoard 整理的模型分析"),
+    ("05_tb_analysis/build_tb_analysis.py", "tb", "TensorBoard 分析產生器"),
+    ("05_tb_analysis/data/final_scorecard.csv", "tb", "最終 scorecard 數據"),
+]
+build(os.path.join(ROOT, "ai_report"), os.path.join(ROOT, "ai.html"),
+      "AI 協作與工作日誌 · 電腦與物理 · TD3 × Ant-v5", "AI 協作 · 工作日誌",
+      "電腦與物理 · TD3 × Ant-v5 期末專題",
+      "AI 協作與除錯紀錄",
+      "本專題把 AI 當「協作研究助理」：AI 使用總報告、Debug 日誌、prompt／agent 交接、任務規格與 TensorBoard 分析。左側分組，點任一檔案即可<strong>直接在本頁閱讀</strong>。",
+      "建議閱讀順序：<b>AI 使用總報告</b> → <b>Debug 日誌</b> → <b>交接紀錄</b> → 任務規格與訓練 log。",
+      "ai", AI_GROUPS, AI_FILES)

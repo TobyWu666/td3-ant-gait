@@ -1,0 +1,9 @@
+model,role,ep_len,mean_speed,speed_error,regularity,anti_phase,diagonal_sync,jerk,cot,uprightness
+Beta,natural baseline,1000,0.94,0.14,0.239,0.209,0.712,0.028,1.02,0.986
+Gamma-04,stable progress base,1000,1.29,0.328,0.334,0.321,0.601,0.329,5.56,0.982
+Gamma-05,gait/posture fusion,1000,1.37,0.397,0.355,0.326,0.677,0.158,2.85,0.977
+Gamma-06,tent speed + smooth,1000,0.83,0.219,0.344,0.212,0.552,0.087,2.62,0.989
+Gamma-07,speed balanced,1000,0.958,0.1,0.308,0.267,0.544,0.12,3.01,0.979
+Gamma-08,proxy winner,1000,0.922,0.168,0.38,0.358,0.575,0.133,4.16,0.993
+BetaPrime-25k,best checkpoint,1000,0.983,0.108,nan,0.245,0.678,0.037,0.96,0.99
+Theta-15A,theta final,1000,0.913,0.122,nan,nan,0.744,0.052,1.62,0.991
